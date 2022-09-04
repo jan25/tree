@@ -2,44 +2,23 @@ package main
 
 import (
 	"fmt"
-	"io/fs"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // TODO add depth flag
 // TODO add limit on number of files to print
 // TODO follow sym links
 
-func tree2(dir string) error {
-	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if path == dir {
-			fmt.Printf("%s\n", dir)
-			return nil
-		}
-
-		seps := strings.Count(strings.TrimPrefix(path, dir), string(filepath.Separator))
-		indent := strings.Repeat("   ", seps-1) + "├── "
-		if seps > 1 {
-			indent = "│" + indent
-		}
-		fmt.Printf("%s%s\n", indent, d.Name())
-		return nil
-	})
-}
-
-func tree(root string, indent string) error {
+func tree(out io.Writer, root string, indent string) error {
 	fi, err := os.Stat(root)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%s\n", fi.Name())
+	fmt.Fprintf(out, "%s\n", fi.Name())
 
 	if !fi.IsDir() {
 		return nil
@@ -59,9 +38,9 @@ func tree(root string, indent string) error {
 			indentSuffix = "│   "
 		}
 
-		fmt.Printf("%s", indent+prefix)
+		fmt.Fprintf(out, "%s", indent+prefix)
 
-		if err = tree(filepath.Join(root, e.Name()), indent+indentSuffix); err != nil {
+		if err = tree(out, filepath.Join(root, e.Name()), indent+indentSuffix); err != nil {
 			return err
 		}
 	}
@@ -77,7 +56,9 @@ func main() {
 
 	// TODO walk all dirs
 	dir := dirs[0]
-	if err := tree(dir, ""); err != nil {
+
+	fmt.Printf("tree %s:\n", dir)
+	if err := tree(os.Stdout, dir, ""); err != nil {
 		log.Fatal(err)
 	}
 }
